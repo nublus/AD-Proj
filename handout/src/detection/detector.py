@@ -41,14 +41,44 @@ class LidarDetector:
         "min_detection_score": 0.12,
     }
 
-    def __init__(self, nusc, config: dict | None = None):
+    PRESETS = {
+        "balanced": {},
+        "tracking_recall": {
+            "dbscan_eps": 0.85,
+            "dbscan_min_samples": 10,
+            "min_cluster_points": 8,
+            "max_detection_range_m": 50.0,
+            "min_relative_z_m": -3.0,
+            "max_relative_z_m": 4.5,
+            "min_detection_score": 0.08,
+        },
+        "precision": {
+            "dbscan_eps": 0.75,
+            "dbscan_min_samples": 14,
+            "min_cluster_points": 12,
+            "max_detection_range_m": 40.0,
+            "min_detection_score": 0.16,
+        },
+    }
+
+    def __init__(self, nusc, config: dict | None = None, preset: str = "balanced"):
         """
         Args:
             nusc: loaded NuScenes instance.
             config: override defaults with a dict of hyper-parameters.
         """
         self.nusc = nusc
-        self.cfg = {**self.DEFAULT_CONFIG, **(config or {})}
+        if preset not in self.PRESETS:
+            raise ValueError(
+                f"Unknown detector preset: {preset}. "
+                f"Available presets: {', '.join(sorted(self.PRESETS))}"
+            )
+        self.preset = preset
+        self.cfg = {
+            **self.DEFAULT_CONFIG,
+            **self.PRESETS[preset],
+            **(config or {}),
+        }
 
     # ----------------------------------------------------------------
     # Core detection routine (per sample)

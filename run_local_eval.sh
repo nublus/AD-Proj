@@ -8,6 +8,7 @@ MODE="${1:-detection}"
 DATAROOT="${DATAROOT:-$PROJECT_ROOT/material/v1.0-mini}"
 VERSION="${VERSION:-v1.0-mini}"
 OBSERVATION_RATIO="${OBSERVATION_RATIO:-0.75}"
+DETECTOR_PRESET="${DETECTOR_PRESET:-balanced}"
 
 if [[ -n "${PYTHON_BIN:-}" ]]; then
   PYTHON_CMD="$PYTHON_BIN"
@@ -39,7 +40,8 @@ run_detection() {
     --dataroot "$DATAROOT" \
     --version "$VERSION" \
     --output submissions/detection_results.json \
-    --observation_ratio "$OBSERVATION_RATIO"
+    --observation_ratio "$OBSERVATION_RATIO" \
+    --detector-preset "$DETECTOR_PRESET"
 }
 
 run_tracking() {
@@ -100,6 +102,7 @@ Optional environment variables:
   DATAROOT=...           Path to nuScenes root. Default: ./material/v1.0-mini
   VERSION=...            nuScenes version. Default: v1.0-mini
   OBSERVATION_RATIO=...  Default: 0.75
+  DETECTOR_PRESET=...    Detector preset. Default: balanced
   PYTHON_BIN=...         Python interpreter to use
 EOF
     exit 1

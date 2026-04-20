@@ -36,8 +36,40 @@ class KalmanFilter3D:
         """
 
         self.dt = dt
+        initial_position = np.asarray(initial_position, dtype=float).reshape(3)
 
-        raise NotImplementedError("TODO: implement KalmanFilter3D.__init__()")
+        # State: [px, py, pz, vx, vy, vz]
+        self.x = np.zeros(6, dtype=float)
+        self.x[:3] = initial_position
+
+        # Constant-velocity dynamics.
+        self.F = np.eye(6, dtype=float)
+        self.F[0, 3] = dt
+        self.F[1, 4] = dt
+        self.F[2, 5] = dt
+
+        # We only observe position.
+        self.H = np.zeros((3, 6), dtype=float)
+        self.H[0, 0] = 1.0
+        self.H[1, 1] = 1.0
+        self.H[2, 2] = 1.0
+
+        pos_var = float(measurement_noise_std) ** 2
+        vel_var = max(float(process_noise_std) ** 2, 1e-3)
+        self.P = np.diag([pos_var, pos_var, pos_var, 10.0, 10.0, 10.0]).astype(float)
+
+        # Constant-velocity process noise with white acceleration.
+        q = float(process_noise_std) ** 2
+        q_block = np.array(
+            [[dt**4 / 4.0, dt**3 / 2.0], [dt**3 / 2.0, dt**2]],
+            dtype=float,
+        ) * q
+        self.Q = np.zeros((6, 6), dtype=float)
+        self.Q[np.ix_([0, 3], [0, 3])] = q_block
+        self.Q[np.ix_([1, 4], [1, 4])] = q_block
+        self.Q[np.ix_([2, 5], [2, 5])] = q_block
+
+        self.R = np.eye(3, dtype=float) * pos_var
 
     def predict(self) -> np.ndarray:
         """
@@ -49,8 +81,9 @@ class KalmanFilter3D:
         Returns:
             predicted state  (6,)
         """
-
-        raise NotImplementedError("TODO: implement KalmanFilter3D.predict()")
+        self.x = self.F @ self.x
+        self.P = self.F @ self.P @ self.F.T + self.Q
+        return self.x.copy()
 
     def update(self, measurement: np.ndarray) -> np.ndarray:
         """
@@ -68,8 +101,16 @@ class KalmanFilter3D:
         Returns:
             updated state  (6,)
         """
+        measurement = np.asarray(measurement, dtype=float).reshape(3)
 
-        raise NotImplementedError("TODO: implement KalmanFilter3D.update()")
+        innovation = measurement - self.H @ self.x
+        innovation_cov = self.H @ self.P @ self.H.T + self.R
+        kalman_gain = self.P @ self.H.T @ np.linalg.inv(innovation_cov)
+
+        self.x = self.x + kalman_gain @ innovation
+        identity = np.eye(6, dtype=float)
+        self.P = (identity - kalman_gain @ self.H) @ self.P
+        return self.x.copy()
 
     # ----------------------------------------------------------------
     # Convenience accessors
