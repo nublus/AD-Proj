@@ -1,0 +1,14 @@
+.DS_Store
+
+# Local dataset and large assets
+material/
+handout/provided_baselines/checkpoints/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter
+.ipynb_checkpoints/

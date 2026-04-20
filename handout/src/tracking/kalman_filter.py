@@ -1,0 +1,86 @@
+import numpy as np
+
+
+class KalmanFilter3D:
+    """
+    Linear Kalman Filter with constant-velocity motion model for 3-D
+    object tracking.
+
+    The filter maintains:
+        x  (6,)    state estimate  [px, py, pz, vx, vy, vz]
+        P  (6, 6)  state covariance
+
+    Motion model (discrete, dt seconds):
+        x_{k+1} = F · x_k + w       w ~ N(0, Q)
+
+    Measurement model:
+        z_k     = H · x_k + v       v ~ N(0, R)
+    """
+
+    def __init__(
+        self,
+        initial_position: np.ndarray,
+        dt: float = 0.5,
+        process_noise_std: float = 1.0,
+        measurement_noise_std: float = 0.5,
+    ):
+        """
+        Initialise the filter.
+
+        Args:
+            initial_position: (3,) initial [px, py, pz].
+            dt:               Time step between frames (seconds).
+                              nuScenes keyframes are at 2 Hz → dt = 0.5 s.
+            process_noise_std:     Standard deviation for process noise.
+            measurement_noise_std: Standard deviation for measurement noise.
+        """
+
+        self.dt = dt
+
+        raise NotImplementedError("TODO: implement KalmanFilter3D.__init__()")
+
+    def predict(self) -> np.ndarray:
+        """
+        Prediction step: propagate state and covariance forward by dt.
+
+            x⁻ = F · x
+            P⁻ = F · P · Fᵀ + Q
+
+        Returns:
+            predicted state  (6,)
+        """
+
+        raise NotImplementedError("TODO: implement KalmanFilter3D.predict()")
+
+    def update(self, measurement: np.ndarray) -> np.ndarray:
+        """
+        Update step: correct the prediction with a new measurement.
+
+            y  = z - H · x⁻               (innovation)
+            S  = H · P⁻ · Hᵀ + R          (innovation covariance)
+            K  = P⁻ · Hᵀ · S⁻¹            (Kalman gain)
+            x  = x⁻ + K · y
+            P  = (I - K · H) · P⁻
+
+        Args:
+            measurement: (3,) observed position [px, py, pz].
+
+        Returns:
+            updated state  (6,)
+        """
+
+        raise NotImplementedError("TODO: implement KalmanFilter3D.update()")
+
+    # ----------------------------------------------------------------
+    # Convenience accessors
+    # ----------------------------------------------------------------
+
+    @property
+    def position(self) -> np.ndarray:
+        """Current estimated position (3,)."""
+        return self.x[:3].copy()
+
+    @property
+    def velocity(self) -> np.ndarray:
+        """Current estimated velocity (3,)."""
+        return self.x[3:].copy()
