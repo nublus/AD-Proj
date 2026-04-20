@@ -107,33 +107,33 @@ def classify_cluster(size: list[float], num_points: int = 0) -> tuple[str, float
         detection_score: a confidence estimate in [0, 1].
     """
     width, length, height = map(float, size)
-    base_score = min(0.95, 0.3 + 0.01 * max(num_points, 0))
+    num_points = int(num_points)
 
-    if length < 0.8 and width < 0.8 and height < 1.0:
-        return "traffic_cone", min(base_score, 0.6)
-    if length > 2.5 and width < 1.0 and height < 1.2:
-        return "barrier", min(base_score, 0.65)
-    if length > 10.0:
-        return "bus", min(base_score + 0.1, 0.9)
-    if 6.0 < length <= 12.0 and width > 2.0:
-        return "truck", min(base_score + 0.05, 0.88)
-    if 5.0 < length <= 12.0 and 1.5 < width < 3.5 and height < 4.5:
-        return "trailer", min(base_score, 0.82)
-    if 3.5 < length < 7.0 and 1.4 < width < 2.8 and 1.2 < height < 3.2:
-        return "car", min(base_score + 0.1, 0.92)
-    if length < 1.2 and width < 1.2 and 1.0 < height < 2.3:
-        return "pedestrian", min(base_score + 0.05, 0.82)
-    if 1.2 < length < 2.8 and width < 1.2 and height < 2.0:
-        if num_points > 25:
-            return "motorcycle", min(base_score, 0.75)
-        return "bicycle", min(base_score, 0.72)
-    if 4.0 < length < 9.0 and width > 2.0 and height > 2.0:
-        return "construction_vehicle", min(base_score, 0.78)
+    # Keep scores conservative so dubious clusters are ranked later by AP.
+    point_bonus = min(0.18, max(num_points - 10, 0) * 0.003)
 
-    if length > 6.0:
-        return "truck", min(base_score, 0.65)
-    if length > 3.0:
-        return "car", min(base_score, 0.7)
-    if height > 1.2:
-        return "pedestrian", min(base_score, 0.55)
-    return "traffic_cone", min(base_score, 0.5)
+    if 9.0 < length < 18.0 and 2.2 < width < 4.5 and 2.5 < height < 4.5 and num_points >= 35:
+        return "bus", 0.60 + point_bonus
+    if 5.5 < length < 12.0 and 1.8 < width < 3.5 and 1.8 < height < 4.0 and num_points >= 25:
+        return "truck", 0.56 + point_bonus
+    if 4.0 < length < 12.0 and width > 2.2 and height > 2.5 and num_points >= 30:
+        return "construction_vehicle", 0.48 + point_bonus
+    if 5.5 < length < 14.0 and 1.7 < width < 3.5 and 1.0 < height < 4.0 and num_points >= 20:
+        return "trailer", 0.42 + point_bonus
+    if 2.8 < length < 6.5 and 1.3 < width < 2.8 and 1.0 < height < 3.0 and num_points >= 18:
+        return "car", 0.62 + point_bonus
+    if length > 1.5 and width < 1.0 and height < 1.4 and num_points >= 8:
+        return "barrier", 0.24 + min(point_bonus, 0.08)
+    if length < 1.1 and width < 1.1 and 0.2 < height < 1.2 and num_points >= 5:
+        return "traffic_cone", 0.16 + min(point_bonus, 0.05)
+    if length < 1.1 and width < 1.1 and 1.0 < height < 2.4 and num_points >= 6:
+        return "pedestrian", 0.20 + min(point_bonus, 0.07)
+    if 1.2 < length < 2.8 and width < 1.1 and 0.6 < height < 1.8 and num_points >= 10:
+        if num_points >= 18:
+            return "motorcycle", 0.24 + min(point_bonus, 0.08)
+        return "bicycle", 0.22 + min(point_bonus, 0.07)
+
+    # Low-confidence fallback for ambiguous medium objects.
+    if 2.5 < length < 7.0 and 1.0 < width < 3.5 and 0.8 < height < 3.5 and num_points >= 15:
+        return "car", 0.16 + min(point_bonus, 0.06)
+    return "traffic_cone", 0.08

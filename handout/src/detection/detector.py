@@ -2,6 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 from src.utils import (
+    get_ego_pose,
     get_lidar_points_in_global,
     make_detection_entry,
     save_detection_results,
@@ -26,14 +27,18 @@ class LidarDetector:
         "ransac_max_iterations": 1000,
 
         # DBSCAN clustering
-        "dbscan_eps": 0.6,
-        "dbscan_min_samples": 10,
+        "dbscan_eps": 0.8,
+        "dbscan_min_samples": 12,
 
         # Bounding box / cluster filtering
-        "min_cluster_points": 5,
-        "max_cluster_points": 50000,
+        "min_cluster_points": 10,
+        "max_cluster_points": 4000,
         "min_box_volume": 0.1,       # m³
-        "max_box_volume": 1000.0,    # m³
+        "max_box_volume": 300.0,     # m³
+        "max_detection_range_m": 45.0,
+        "min_relative_z_m": -2.5,
+        "max_relative_z_m": 4.0,
+        "min_detection_score": 0.12,
     }
 
     def __init__(self, nusc, config: dict | None = None):
@@ -71,6 +76,18 @@ class LidarDetector:
         """
         # Load point cloud (provided)
         points = get_lidar_points_in_global(self.nusc, sample_token)  # (N, 4)
+        if len(points) == 0:
+            return []
+
+        ego_translation, _ = get_ego_pose(self.nusc, sample_token)
+        xyz = points[:, :3]
+        rel = xyz - ego_translation
+        roi_mask = (
+            (np.linalg.norm(rel[:, :2], axis=1) <= self.cfg["max_detection_range_m"])
+            & (rel[:, 2] >= self.cfg["min_relative_z_m"])
+            & (rel[:, 2] <= self.cfg["max_relative_z_m"])
+        )
+        points = points[roi_mask]
         if len(points) == 0:
             return []
 
@@ -118,10 +135,28 @@ class LidarDetector:
                 continue
             if volume > self.cfg["max_box_volume"]:
                 continue
+            if size[0] < 0.2 or size[1] < 0.2 or size[2] < 0.2:
+                continue
+            if size[0] > 5.0 or size[1] > 20.0 or size[2] > 5.0:
+                continue
+
+            center = np.asarray(box["translation"], dtype=float)
+            rel_center = center - ego_translation
+            center_distance = float(np.linalg.norm(rel_center[:2]))
+            if center_distance > self.cfg["max_detection_range_m"]:
+                continue
+            if rel_center[2] < self.cfg["min_relative_z_m"] or rel_center[2] > self.cfg["max_relative_z_m"]:
+                continue
 
             detection_name, detection_score = classify_cluster(
                 size, num_points=n_cluster_points
             )
+            # Down-rank far or weakly supported clusters to improve ranking.
+            distance_scale = max(0.35, 1.0 - center_distance / 70.0)
+            support_scale = min(1.0, 0.65 + 0.02 * np.log1p(n_cluster_points))
+            detection_score = float(detection_score * distance_scale * support_scale)
+            if detection_score < self.cfg["min_detection_score"]:
+                continue
             detections.append(
                 make_detection_entry(
                     sample_token=sample_token,
