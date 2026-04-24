@@ -73,9 +73,9 @@ class MultiObjectTracker:
 
     def __init__(
         self,
-        max_age: int = 4,
+        max_age: int = 1,
         min_hits: int = 2,
-        association_threshold: float = 5.0,
+        association_threshold: float = 2.75,
         dt: float = 0.5,
     ):
         """
@@ -92,9 +92,9 @@ class MultiObjectTracker:
         self.assoc_threshold = association_threshold
         self.dt = dt
         self.tracks: list[Track] = []
-        self.class_mismatch_penalty = 0.3
-        self.max_output_age = 1
-        self.new_track_score_threshold = 0.14
+        self.class_mismatch_penalty = 0.2
+        self.max_output_age = 0
+        self.new_track_score_threshold = 0.18
 
     def _should_start_track(self, detection: dict) -> bool:
         score = float(detection.get("detection_score", 0.0))

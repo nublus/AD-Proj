@@ -22,7 +22,7 @@ def predict_trajectory(
     Returns:
         List of (x, y) tuples — one per future step.
     """
-    return predict_cv(track_history, num_future_steps)
+    return predict_improved(track_history, num_future_steps)
 
 
 # ====================================================================
@@ -93,5 +93,51 @@ def predict_improved(
 
     Args / Returns: same as ``predict_trajectory``.
     """
+    if len(track_history) == 0:
+        return [(0.0, 0.0)] * num_future_steps
+    hist = sorted(track_history, key=lambda h: h["timestamp"])
+    last = hist[-1]
+    if len(hist) == 1:
+        return [(float(last["x"]), float(last["y"]))] * num_future_steps
 
-    raise NotImplementedError("TODO: implement predict_improved().  ")
+    dt = 0.5
+    vel_candidates: list[tuple[float, float]] = []
+
+    # Blend tracker-reported velocity with short finite differences to
+    # stay robust when the history is short or slightly noisy.
+    for h in hist[-4:]:
+        vx = float(h.get("vx", 0.0))
+        vy = float(h.get("vy", 0.0))
+        if np.isfinite(vx) and np.isfinite(vy):
+            vel_candidates.append((vx, vy))
+
+    for i in range(max(1, len(hist) - 4), len(hist)):
+        t_prev = float(hist[i - 1]["timestamp"]) / 1e6
+        t_cur = float(hist[i]["timestamp"]) / 1e6
+        dt_i = t_cur - t_prev
+        if dt_i <= 1e-6:
+            continue
+        vel_candidates.append(
+            (
+                (float(hist[i]["x"]) - float(hist[i - 1]["x"])) / dt_i,
+                (float(hist[i]["y"]) - float(hist[i - 1]["y"])) / dt_i,
+            )
+        )
+
+    if vel_candidates:
+        vel_array = np.asarray(vel_candidates[-5:], dtype=float)
+        vx = float(np.median(vel_array[:, 0]))
+        vy = float(np.median(vel_array[:, 1]))
+    else:
+        vx = vy = 0.0
+
+    x0 = float(last["x"])
+    y0 = float(last["y"])
+    predictions = []
+    for step in range(1, num_future_steps + 1):
+        # Damp long-horizon motion to avoid runaway extrapolation.
+        scale = max(0.55, 1.0 - 0.05 * step)
+        horizon = dt * step * scale
+        predictions.append((x0 + vx * horizon, y0 + vy * horizon))
+
+    return predictions
