@@ -6,6 +6,7 @@ def ransac_ground_removal(
     distance_threshold: float = 0.3,
     max_iterations: int = 1000,
     n_sample: int = 3,
+    random_seed: int | None = 0,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Remove ground points by fitting a plane with RANSAC.
@@ -26,6 +27,7 @@ def ransac_ground_removal(
         distance_threshold:  Maximum point-to-plane distance for an inlier.
         max_iterations:      Number of RANSAC iterations.
         n_sample:            Points sampled per iteration (>=3 for a plane).
+        random_seed:         Seed for reproducible RANSAC sampling.
 
     Returns:
         non_ground_points:  (M, C)  points classified as non-ground.
@@ -53,7 +55,7 @@ def ransac_ground_removal(
         )
 
     xyz = points[:, :3]
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(random_seed)
 
     best_inlier_mask = None
     best_plane_model = None

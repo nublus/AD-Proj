@@ -74,8 +74,8 @@ class MultiObjectTracker:
     def __init__(
         self,
         max_age: int = 1,
-        min_hits: int = 2,
-        association_threshold: float = 2.75,
+        min_hits: int = 3,
+        association_threshold: float = 3.0,
         dt: float = 0.5,
     ):
         """
@@ -92,13 +92,16 @@ class MultiObjectTracker:
         self.assoc_threshold = association_threshold
         self.dt = dt
         self.tracks: list[Track] = []
-        self.class_mismatch_penalty = 0.2
+        self.class_mismatch_penalty = 0.3
         self.max_output_age = 0
-        self.new_track_score_threshold = 0.18
+        self.new_track_score_threshold = 0.14
+        self.allowed_tracking_classes = {"car", "traffic_cone"}
 
     def _should_start_track(self, detection: dict) -> bool:
         score = float(detection.get("detection_score", 0.0))
         name = detection.get("detection_name", "")
+        if name not in self.allowed_tracking_classes:
+            return False
 
         # Small-object detections are noisier in the current detector, so
         # require slightly stronger evidence before spawning a new track.
@@ -152,6 +155,12 @@ class MultiObjectTracker:
         Returns:
             List of tracking entry dicts (nuScenes format) for this frame.
         """
+        detections = [
+            det
+            for det in detections
+            if det.get("detection_name") in self.allowed_tracking_classes
+        ]
+
         # 1. Predict all existing tracks.
         for track in self.tracks:
             track.predict()

@@ -111,7 +111,7 @@ def predict_improved(
         if np.isfinite(vx) and np.isfinite(vy):
             vel_candidates.append((vx, vy))
 
-    for i in range(max(1, len(hist) - 4), len(hist)):
+    for i in range(max(1, len(hist) - 3), len(hist)):
         t_prev = float(hist[i - 1]["timestamp"]) / 1e6
         t_cur = float(hist[i]["timestamp"]) / 1e6
         dt_i = t_cur - t_prev
@@ -125,7 +125,7 @@ def predict_improved(
         )
 
     if vel_candidates:
-        vel_array = np.asarray(vel_candidates[-5:], dtype=float)
+        vel_array = np.asarray(vel_candidates[-3:], dtype=float)
         vx = float(np.median(vel_array[:, 0]))
         vy = float(np.median(vel_array[:, 1]))
     else:
@@ -136,7 +136,7 @@ def predict_improved(
     predictions = []
     for step in range(1, num_future_steps + 1):
         # Damp long-horizon motion to avoid runaway extrapolation.
-        scale = max(0.55, 1.0 - 0.05 * step)
+        scale = max(0.45, 1.0 - 0.10 * step)
         horizon = dt * step * scale
         predictions.append((x0 + vx * horizon, y0 + vy * horizon))
 
